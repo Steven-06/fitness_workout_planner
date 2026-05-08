@@ -1,7 +1,8 @@
-from planners.csp_planner import EXERCISES
+from repositories import WorkoutRepository
 
 
 def generate_rule_based_plan(user):
+    repo = WorkoutRepository()
     
     days  = user["available_days"]
     goal  = user["goal"]
@@ -16,9 +17,11 @@ def generate_rule_based_plan(user):
 
     plan = {}
     for i, day in enumerate(days):
-        workout = rotation[i % len(rotation)]
+        workout_category = rotation[i % len(rotation)]
+        workout = repo.get_by_category_and_level(workout_category, level)
+        exercises = workout["exercises"] if workout else []
         plan[day] = {
-            "workout":   workout,
-            "exercises": EXERCISES[workout].get(level, []),
+            "workout": workout_category,
+            "exercises": exercises,
         }
     return plan

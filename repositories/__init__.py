@@ -1,0 +1,6 @@
+from .user_repository import UserRepository
+from .workout_repository import WorkoutRepository
+from .workout_plan_repository import WorkoutPlanRepository
+from .plan_comparison_repository import PlanComparisonRepository
+from .adherence_prediction_repository import AdherencePredictionRepository
+from .activity_log_repository import ActivityLogRepository

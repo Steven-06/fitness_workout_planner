@@ -1,27 +1,5 @@
 from constraint import Problem
-
-EXERCISES = {
-    "Cardio": {
-        "Beginner":     ["30-min brisk walk", "Light cycling", "Swimming laps"],
-        "Intermediate": ["30-min jog", "Jump rope intervals", "Cycling sprints"],
-    },
-    "Upper Body": {
-        "Beginner":     ["Push-ups (3x10)", "Dumbbell rows (3x10)", "Shoulder press (3x10)"],
-        "Intermediate": ["Bench press (4x8)", "Pull-ups (3x8)", "Arnold press (4x10)"],
-    },
-    "Lower Body": {
-        "Beginner":     ["Bodyweight squats (3x15)", "Lunges (3x12)", "Glute bridges (3x15)"],
-        "Intermediate": ["Barbell squats (4x8)", "Romanian deadlift (4x8)", "Leg press (4x10)"],
-    },
-    "Full Body": {
-        "Beginner":     ["Burpees (3x8)", "Mountain climbers (3x15)", "Jumping jacks (3x20)"],
-        "Intermediate": ["Deadlifts (4x6)", "Clean and press (3x8)", "Kettlebell swings (3x12)"],
-    },
-    "Rest": {
-        "Beginner":     ["Light stretching", "Short walk"],
-        "Intermediate": ["Light stretching", "Short walk"],
-    },
-}
+from repositories import WorkoutRepository
 
 
 class CSPWorkoutPlanner:
@@ -31,6 +9,7 @@ class CSPWorkoutPlanner:
         self.days     = user["available_days"]
         self.level    = user.get("level", "Beginner")
         self.workouts = ["Cardio", "Upper Body", "Lower Body", "Full Body", "Rest"]
+        self.repo = WorkoutRepository()
 
     def add_variables(self):
         for day in self.days:
@@ -76,10 +55,14 @@ class CSPWorkoutPlanner:
         if solution is None:
             return None
 
-        return {
-            day: {
-                "workout":   solution[day],
-                "exercises": EXERCISES[solution[day]].get(self.level, []),
+        plan = {}
+        for day in self.days:
+            workout_category = solution[day]
+            workout = self.repo.get_by_category_and_level(workout_category, self.level)
+            exercises = workout["exercises"] if workout else []
+            plan[day] = {
+                "workout": workout_category,
+                "exercises": exercises,
             }
-            for day in self.days
-        }
+        
+        return plan
