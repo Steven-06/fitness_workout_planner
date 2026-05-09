@@ -59,12 +59,14 @@ echo "📦 Installing dependencies..."
 
 # Install backend dependencies
 cd "$SCRIPT_DIR/backend"
-pip install -q -r requirements.txt 2>/dev/null
+echo "  Installing backend packages..."
+pip install --quiet -r requirements.txt
 echo "✓ Backend dependencies ready"
 
 # Install frontend dependencies
 cd "$SCRIPT_DIR/frontend"
-pip install -q -r requirements.txt 2>/dev/null
+echo "  Installing frontend packages (Streamlit - this may take 1-2 minutes)..."
+pip install --quiet -r requirements.txt
 echo "✓ Frontend dependencies ready"
 
 # Set MongoDB connection string

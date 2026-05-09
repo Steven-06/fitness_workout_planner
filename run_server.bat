@@ -71,13 +71,15 @@ echo 📦 Installing dependencies...
 
 REM Install backend dependencies
 cd backend
-python -m pip install -q -r requirements.txt >nul 2>&1
+echo   Installing backend packages...
+python -m pip install --quiet -r requirements.txt
 echo ✓ Backend dependencies ready
 cd ..
 
 REM Install frontend dependencies
 cd frontend
-python -m pip install -q -r requirements.txt >nul 2>&1
+echo   Installing frontend packages (Streamlit - this may take 1-2 minutes)...
+python -m pip install --quiet -r requirements.txt
 echo ✓ Frontend dependencies ready
 cd ..
 

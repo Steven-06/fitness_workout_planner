@@ -76,20 +76,22 @@ Write-Host "📦 Installing dependencies..." -ForegroundColor Yellow
 
 # Install backend dependencies
 Push-Location (Join-Path $scriptDir "backend")
+Write-Host "  Installing backend packages..." -ForegroundColor Cyan
 if (Test-Path $venvPython) {
-    & $venvPython -m pip install -q -r requirements.txt 2>&1 | Out-Null
+    & $venvPython -m pip install --quiet -r requirements.txt 2>&1 | Out-Null
 } else {
-    pip install -q -r requirements.txt 2>&1 | Out-Null
+    pip install --quiet -r requirements.txt 2>&1 | Out-Null
 }
 Write-Host "✓ Backend dependencies ready" -ForegroundColor Green
 Pop-Location
 
 # Install frontend dependencies
 Push-Location (Join-Path $scriptDir "frontend")
+Write-Host "  Installing frontend packages (Streamlit - this may take 1-2 minutes)..." -ForegroundColor Cyan
 if (Test-Path $venvPython) {
-    & $venvPython -m pip install -q -r requirements.txt 2>&1 | Out-Null
+    & $venvPython -m pip install --quiet -r requirements.txt 2>&1 | Out-Null
 } else {
-    pip install -q -r requirements.txt 2>&1 | Out-Null
+    pip install --quiet -r requirements.txt 2>&1 | Out-Null
 }
 Write-Host "✓ Frontend dependencies ready" -ForegroundColor Green
 Pop-Location
