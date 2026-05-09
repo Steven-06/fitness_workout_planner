@@ -1,11 +1,11 @@
 @echo off
 REM Run Server Script for Fitness Tracker (Windows)
-REM This script starts MongoDB, the FastAPI backend, and the Streamlit frontend.
+REM This script starts MongoDB in Docker and runs the FastAPI backend server.
 
 setlocal enabledelayedexpansion
 
 echo ==========================================
-echo Fitness Tracker - Full Stack Startup
+echo Fitness Tracker Server Startup Script
 echo ==========================================
 
 REM Check if Docker is installed
@@ -64,51 +64,63 @@ timeout /t 1 /nobreak >nul
 goto wait_mongo
 
 :mongo_ready
-cd /d "%~dp0"
+REM Navigate to backend directory
+cd /d "%~dp0backend"
+if %ERRORLEVEL% NEQ 0 (
+    echo ❌ Failed to navigate to backend directory
+    pause
+    exit /b 1
+)
 
 echo.
-echo 📦 Installing dependencies...
-
-REM Install backend dependencies
-cd backend
-echo   Installing backend packages...
-python -m pip install --quiet -r requirements.txt
-echo ✓ Backend dependencies ready
-cd ..
-
-REM Install frontend dependencies
-cd frontend
-echo   Installing frontend packages (Streamlit - this may take 1-2 minutes)...
-python -m pip install --quiet -r requirements.txt
-echo ✓ Frontend dependencies ready
-cd ..
+echo 📦 Installing Python dependencies...
+set "VENV_PY=%~dp0venv\Scripts\python.exe"
+if exist "%VENV_PY%" (
+    echo Using venv python: "%VENV_PY%"
+    "%VENV_PY%" -m pip install --disable-pip-version-check --no-input -r ..\requirements.txt
+    if %ERRORLEVEL% NEQ 0 (
+        echo Failed to install from repo root; trying backend requirements
+        "%VENV_PY%" -m pip install --disable-pip-version-check --no-input -r requirements.txt
+    )
+    echo ✓ Dependencies installation finished
+) else (
+    echo venv python not found; falling back to system pip
+    pip install --disable-pip-version-check --no-input -r ..\requirements.txt
+    if %ERRORLEVEL% NEQ 0 (
+        pip install --disable-pip-version-check --no-input -r requirements.txt
+    )
+    echo ✓ Dependencies installation finished
+)
 
 REM Set MongoDB connection string
 set MONGODB_URL=mongodb://admin:admin@localhost:27017/fitness_tracker?authSource=admin
 
 echo.
 echo ==========================================
-echo 🚀 Starting Fitness Tracker Services
+echo 🚀 Starting Fitness Tracker API Server
 echo ==========================================
 echo.
-echo 📍 Backend API: http://127.0.0.1:8000
-echo 📚 API Documentation: http://127.0.0.1:8000/docs
-echo 💻 Frontend UI: http://127.0.0.1:8501
+echo 📍 Server running at: http://127.0.0.1:8000
+echo 📚 API docs at: http://127.0.0.1:8000/docs
+echo � ReDoc at: http://127.0.0.1:8000/redoc
 echo.
-echo Starting Streamlit frontend on port 8501...
-start "" python -m streamlit run frontend\app.py --server.port=8501 --logger.level=warning
-
-timeout /t 3 /nobreak >nul
-
-echo.
-echo Starting FastAPI backend on port 8000...
-echo.
-echo ⚡ Both services are now running!
-echo    - Backend: http://127.0.0.1:8000
-echo    - Frontend: http://127.0.0.1:8501
-echo.
-echo Press Ctrl+C in both windows to stop all services
+echo Press Ctrl+C to stop the server
 echo.
 
-cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+REM Start the FastAPI server
+REM Start Streamlit frontend in a new window (if venv exists)
+if exist "%VENV_PY%" (
+    echo Starting Streamlit in the background
+    start "" /b "%VENV_PY%" -m streamlit run ..\frontend\app.py --server.port=8501 --server.headless true
+) else (
+    echo Starting Streamlit in the background
+    start "" /b streamlit run ..\frontend\app.py --server.port=8501 --server.headless true
+)
+echo 📍 Frontend running at: http://127.0.0.1:8501
+
+REM Start the FastAPI server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+echo.
+echo Server stopped.
+pause

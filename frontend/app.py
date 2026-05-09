@@ -230,7 +230,7 @@ with tab1:
         with col3:
             st.markdown(f"**Level**: {user_data.get('level', 'N/A')}")
         with col4:
-            st.markdown(f"**ID**: `{user_data.get('id', 'N/A')[:8]}...`")
+            st.markdown(f"**ID**: `{user_data.get('_id', 'N/A')[:8]}...`")
         
         st.markdown(f"**Available Days**: {', '.join(user_data.get('available_days', []))}")
         

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Run Server Script for Fitness Tracker
-# This script starts MongoDB, the FastAPI backend, and the Streamlit frontend.
+# This script starts MongoDB in Docker and runs the FastAPI backend server.
 
 set -e
 
 echo "=========================================="
-echo "Fitness Tracker - Full Stack Startup"
+echo "Fitness Tracker Server Startup Script"
 echo "=========================================="
 
 # Check if Docker is installed
@@ -52,57 +52,60 @@ for i in {1..30}; do
     sleep 1
 done
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Check if we're in the backend directory
+cd "$(dirname "$0")/backend" || exit 1
 
 echo ""
-echo "📦 Installing dependencies..."
-
-# Install backend dependencies
-cd "$SCRIPT_DIR/backend"
-echo "  Installing backend packages..."
-pip install --quiet -r requirements.txt
-echo "✓ Backend dependencies ready"
-
-# Install frontend dependencies
-cd "$SCRIPT_DIR/frontend"
-echo "  Installing frontend packages (Streamlit - this may take 1-2 minutes)..."
-pip install --quiet -r requirements.txt
-echo "✓ Frontend dependencies ready"
+echo "📦 Installing Python dependencies..."
+# Prefer using the project's venv python when available
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_PY="$SCRIPT_DIR/venv/bin/python"
+if [ -x "$VENV_PY" ]; then
+    echo "Using venv python: $VENV_PY"
+    "$VENV_PY" -m pip install --disable-pip-version-check --no-input -r "$SCRIPT_DIR/requirements.txt" || {
+        echo "Install from repo root failed; trying backend requirements"
+        "$VENV_PY" -m pip install --disable-pip-version-check --no-input -r "$SCRIPT_DIR/backend/requirements.txt"
+    }
+    echo "✓ Dependencies installation finished (venv)"
+elif [ -f "../requirements.txt" ]; then
+    pip install --disable-pip-version-check --no-input -r ../requirements.txt
+    echo "✓ Dependencies installed (from repo root)"
+elif [ -f "requirements.txt" ]; then
+    pip install --disable-pip-version-check --no-input -r requirements.txt
+    echo "✓ Dependencies installed (from backend folder)"
+else
+    echo "⚠️  requirements.txt not found (checked repo root and backend)"
+fi
 
 # Set MongoDB connection string
 export MONGODB_URL="mongodb://admin:admin@localhost:27017/fitness_tracker?authSource=admin"
 
 echo ""
 echo "=========================================="
-echo "🚀 Starting Fitness Tracker Services"
+echo "🚀 Starting Fitness Tracker API Server"
 echo "=========================================="
 echo ""
-echo "📍 Backend API: http://127.0.0.1:8000"
-echo "📚 API Documentation: http://127.0.0.1:8000/docs"
-echo "💻 Frontend UI: http://127.0.0.1:8501"
+echo "📍 Server running at: http://127.0.0.1:8000"
+echo "📚 API docs at: http://127.0.0.1:8000/docs"
+echo "� ReDoc at: http://127.0.0.1:8000/redoc"
+echo ""
+echo "Press Ctrl+C to stop the server"
 echo ""
 
-# Start Streamlit frontend in background
-echo "Starting Streamlit frontend on port 8501..."
-streamlit run "$SCRIPT_DIR/frontend/app.py" --server.port=8501 --logger.level=warning &
-FRONTEND_PID=$!
+# Start the FastAPI server
+# Start Streamlit frontend in background (use venv python if available)
+FRONTEND_PATH="$SCRIPT_DIR/../frontend/app.py"
+if [ -x "$VENV_PY" ]; then
+    echo "Starting Streamlit (venv) on port 8501..."
+    "$VENV_PY" -m streamlit run "$SCRIPT_DIR/../frontend/app.py" --server.port=8501 --server.headless true &
+else
+    echo "Starting Streamlit (system) on port 8501..."
+    streamlit run "$SCRIPT_DIR/../frontend/app.py" --server.port=8501 --server.headless true &
+fi
 
-sleep 3
-
-echo ""
-echo "Starting FastAPI backend on port 8000..."
-echo ""
-echo "⚡ Both services are now running!"
-echo "   - Backend: http://127.0.0.1:8000"
-echo "   - Frontend: http://127.0.0.1:8501"
-echo ""
-echo "Press Ctrl+C to stop all services"
-echo ""
-
-# Start the FastAPI server (foreground)
-cd "$SCRIPT_DIR/backend"
-trap "kill $FRONTEND_PID 2>/dev/null; exit" EXIT INT TERM
+# Start the FastAPI server
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
+echo "📍 Frontend running at: http://127.0.0.1:8501"
 echo ""
-echo "✓ All services stopped"
+echo "Server stopped."
