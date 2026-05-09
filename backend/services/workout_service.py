@@ -5,7 +5,7 @@ from backend.models.models import (
 )
 from backend.repositories import (
     UserRepository, WorkoutPlanRepository, PlanComparisonRepository,
-    AdherencePredictionRepository, ActivityLogRepository
+    AdherencePredictionRepository, ActivityLogRepository, WorkoutRepository
 )
 from backend.planners.rule_based import generate_rule_based_plan
 from backend.planners.csp_planner import CSPWorkoutPlanner
@@ -19,6 +19,7 @@ class WorkoutService:
     def __init__(self):
         self.predictor = AdherencePredictor()
         self.user_repository = UserRepository()
+        self.workout_repository = WorkoutRepository()
         self.workout_plan_repository = WorkoutPlanRepository()
         self.plan_comparison_repository = PlanComparisonRepository()
         self.adherence_prediction_repository = AdherencePredictionRepository()
@@ -150,8 +151,32 @@ class WorkoutService:
 
         return plan_comparison, saved_comparison["_id"]
 
+    def _enrich_plan_for_prediction(self, plan_id: Optional[str], user_level: str) -> list:
+        """Turn a stored plan's day->category mapping into [{duration_minutes, intensity}, ...]
+        by looking up each day's Workout doc. Skips Rest days (they don't count
+        toward perceived training load)."""
+        if not plan_id:
+            return []
+        stored_plan = self.workout_plan_repository.get(plan_id)
+        if not stored_plan:
+            return []
+
+        enriched = []
+        for day, day_workout in (stored_plan.get("plan_data") or {}).items():
+            category = day_workout.get("workout") if isinstance(day_workout, dict) else None
+            if not category or category == "Rest":
+                continue
+            workout_doc = self.workout_repository.get_by_category_and_level(category, user_level)
+            if workout_doc:
+                enriched.append({
+                    "duration_minutes": workout_doc.get("duration_minutes", 30),
+                    "intensity": workout_doc.get("intensity", "medium"),
+                })
+        return enriched
+
     def predict_adherence(self, user: User, plan_id: Optional[str] = None) -> Tuple[AdherencePrediction, str]:
-        adherence_probability = self.predictor.predict_adherence(user.dict())
+        plan_workouts = self._enrich_plan_for_prediction(plan_id, user.level or "Beginner")
+        adherence_probability = self.predictor.predict_adherence(user.dict(), plan_workouts)
         difficulty = 1 - adherence_probability
         prediction = AdherencePrediction(adherence_probability=adherence_probability, difficulty_score=difficulty)
 

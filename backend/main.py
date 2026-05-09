@@ -2,13 +2,19 @@ from fastapi import FastAPI
 from backend.routes.workout_routes import router as workout_router
 from backend.routes.user_routes import router as user_router
 from backend.seed import seed_workouts
+from backend.services.adherence_predictor import AdherencePredictor
 
 app = FastAPI(title="Fitness Tracker API", version="1.0.0")
 
-# Seed workouts on startup
+# Seed workouts + load (or train) the adherence NN on startup
 @app.on_event("startup")
 async def startup_event():
     seed_workouts()
+    metrics = AdherencePredictor().load_or_train()
+    if metrics is not None:
+        print(f"Trained adherence model -- {metrics}")
+    else:
+        print("Loaded adherence model from artifacts")
 
 app.include_router(user_router, prefix="/api/v1", tags=["users"])
 app.include_router(workout_router, prefix="/api/v1", tags=["workouts"])
