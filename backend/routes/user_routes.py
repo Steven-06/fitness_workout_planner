@@ -8,7 +8,8 @@ router = APIRouter()
 async def create_user(user: User):
     user_repository = UserRepository()
     db_user = user_repository.save(user)
-    return {"user_id": db_user["_id"], "message": "User created"}
+    # Return both `id` (used by frontend) and `user_id` (documented API key)
+    return {"id": db_user["_id"], "user_id": db_user["_id"], "message": "User created"}
 
 @router.get("/users/{user_id}")
 async def get_user(user_id: str):
