@@ -1,5 +1,5 @@
 from models.models import (
-    User, WorkoutPlan, PlanComparison, AdherencePrediction,
+    WorkoutPlan, PlanComparison, AdherencePrediction,
     StoredWorkoutPlan, StoredPlanComparison, StoredAdherencePrediction, UserActivityLog,
     DayWorkout, PredictionMetrics, ActivityDetails, ComparisonResult
 )
@@ -35,32 +35,38 @@ class WorkoutService:
             for day, workout_data in raw_plan.items()
         }
 
-    def generate_rule_based_plan(self, user: User) -> Tuple[WorkoutPlan, str]:
-        generated_plan_data = generate_rule_based_plan(user.dict())
+    def generate_rule_based_plan(self, user_id: str) -> Tuple[WorkoutPlan, str]:
+        user = self.user_repository.get(user_id)
+        if not user:
+            raise ValueError("User not found")
+        generated_plan_data = generate_rule_based_plan(user)
         typed_plan = self._convert_to_typed_plan(generated_plan_data)
         workout_plan = WorkoutPlan(plan=typed_plan)
 
         # Store the plan
         stored_plan = StoredWorkoutPlan(
-            user_id=user.id or "temp",
-            plan_type="rule_based",
+            user_id=user_id,
+            plan_model="rule_based",
             plan_data=typed_plan
         )
         saved_plan = self.workout_plan_repository.save(stored_plan)
 
         # Log activity
-        self._log_activity(user.id or "temp", "plan_generated", ActivityDetails(
+        self._log_activity(user_id, "plan_generated", ActivityDetails(
             action_type="plan_generated",
             details={
-                "plan_type": "rule_based",
+                "plan_model": "rule_based",
                 "plan_id": saved_plan["_id"]
             }
         ))
 
         return workout_plan, saved_plan["_id"]
 
-    def generate_csp_plan(self, user: User) -> Tuple[Optional[WorkoutPlan], Optional[str]]:
-        planner = CSPWorkoutPlanner(user.dict())
+    def generate_csp_plan(self, user_id: str) -> Tuple[Optional[WorkoutPlan], Optional[str]]:
+        user = self.user_repository.get(user_id)
+        if not user:
+            raise ValueError("User not found")
+        planner = CSPWorkoutPlanner(user)
         generated_plan_data = planner.generate_plan()
         if generated_plan_data is None:
             return None, None
@@ -70,26 +76,32 @@ class WorkoutService:
 
         # Store the plan
         stored_plan = StoredWorkoutPlan(
-            user_id=user.id or "temp",
-            plan_type="csp",
+            user_id=user_id,
+            plan_model="csp",
             plan_data=typed_plan
         )
         saved_plan = self.workout_plan_repository.save(stored_plan)
 
         # Log activity
-        self._log_activity(user.id or "temp", "plan_generated", ActivityDetails(
+        self._log_activity(user_id, "plan_generated", ActivityDetails(
             action_type="plan_generated",
             details={
-                "plan_type": "csp",
+                "plan_model": "csp",
                 "plan_id": saved_plan["_id"]
             }
         ))
 
         return workout_plan, saved_plan["_id"]
 
-    def adapt_plan(self, plan: WorkoutPlan, missed_day: str, user_id: str = "temp") -> Tuple[WorkoutPlan, str]:
-        # Convert DayWorkout objects to dicts for the adapter function
-        plan_dict = {day: day_workout.dict() for day, day_workout in plan.plan.items()}
+    def adapt_plan(self, plan_id: str, missed_day: str, user_id: str = "temp") -> Tuple[WorkoutPlan, str]:
+        # Fetch the stored plan by id and ensure it belongs to the user
+        original = self.workout_plan_repository.get(plan_id)
+        if not original:
+            raise ValueError("Original plan not found")
+        if original.get("user_id") != user_id:
+            raise ValueError("Plan does not belong to user")
+
+        plan_dict = original.get("plan_data") or {}
         adapted_plan_data = adapt_workout_plan_data(plan_dict, missed_day)
         typed_plan = self._convert_to_typed_plan(adapted_plan_data)
         workout_plan = WorkoutPlan(plan=typed_plan)
@@ -97,7 +109,8 @@ class WorkoutService:
         # Store the adapted plan
         stored_plan = StoredWorkoutPlan(
             user_id=user_id,
-            plan_type="adapted",
+            plan_model=original.get("plan_model", "unknown"),
+            parent_plan_id=plan_id,
             plan_data=typed_plan
         )
         saved_plan = self.workout_plan_repository.save(stored_plan)
@@ -113,9 +126,9 @@ class WorkoutService:
 
         return workout_plan, saved_plan["_id"]
 
-    def compare_plans(self, user: User) -> Tuple[PlanComparison, str]:
-        rule_workout_plan, rule_plan_id = self.generate_rule_based_plan(user)
-        csp_workout_plan, csp_plan_id = self.generate_csp_plan(user)
+    def compare_plans(self, user_id: str) -> Tuple[PlanComparison, str]:
+        rule_workout_plan, rule_plan_id = self.generate_rule_based_plan(user_id)
+        csp_workout_plan, csp_plan_id = self.generate_csp_plan(user_id)
 
         if csp_workout_plan is None:
             raise ValueError("CSP plan generation failed")
@@ -132,7 +145,7 @@ class WorkoutService:
 
         # Store the comparison
         stored_comparison = StoredPlanComparison(
-            user_id=user.id or "temp",
+            user_id=user_id,
             csp_plan_id=csp_plan_id,
             rule_plan_id=rule_plan_id,
             comparison_data=comparison_result
@@ -140,7 +153,7 @@ class WorkoutService:
         saved_comparison = self.plan_comparison_repository.save(stored_comparison)
 
         # Log activity
-        self._log_activity(user.id or "temp", "plans_compared", ActivityDetails(
+        self._log_activity(user_id, "plans_compared", ActivityDetails(
             action_type="plans_compared",
             details={
                 "comparison_id": saved_comparison["_id"],
@@ -174,9 +187,12 @@ class WorkoutService:
                 })
         return enriched
 
-    def predict_adherence(self, user: User, plan_id: Optional[str] = None) -> Tuple[AdherencePrediction, str]:
-        plan_workouts = self._enrich_plan_for_prediction(plan_id, user.level or "Beginner")
-        adherence_probability = self.predictor.predict_adherence(user.dict(), plan_workouts)
+    def predict_adherence(self, user_id: str, plan_id: Optional[str] = None) -> Tuple[AdherencePrediction, str]:
+        user = self.user_repository.get(user_id)
+        if not user:
+            raise ValueError("User not found")
+        plan_workouts = self._enrich_plan_for_prediction(plan_id, user.get("level", "Beginner"))
+        adherence_probability = self.predictor.predict_adherence(user, plan_workouts)
         difficulty = 1 - adherence_probability
         prediction = AdherencePrediction(adherence_probability=adherence_probability, difficulty_score=difficulty)
 
@@ -186,14 +202,14 @@ class WorkoutService:
             difficulty_score=difficulty
         )
         stored_prediction = StoredAdherencePrediction(
-            user_id=user.id or "temp",
+            user_id=user_id,
             plan_id=plan_id,
             prediction_data=prediction_metrics
         )
         saved_prediction = self.adherence_prediction_repository.save(stored_prediction)
 
         # Log activity
-        self._log_activity(user.id or "temp", "prediction_made", ActivityDetails(
+        self._log_activity(user_id, "prediction_made", ActivityDetails(
             action_type="prediction_made",
             details={
                 "prediction_id": saved_prediction["_id"],

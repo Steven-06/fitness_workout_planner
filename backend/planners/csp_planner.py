@@ -13,6 +13,8 @@ class CSPWorkoutPlanner:
         self.user = user
         self.problem = Problem()
         self.available_days = user["available_days"]
+        # use `days` as the variable list in the CSP; initialize from available_days
+        self.days = list(self.available_days)
         self.level = user.get("level", "Beginner")
         self.workouts = ["Cardio", "Upper Body", "Lower Body", "Full Body", "Rest"]
         self.workout_repository = WorkoutRepository()

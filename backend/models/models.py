@@ -45,7 +45,6 @@ class User(BaseModel):
     available_days: List[str]
     goal: str
     level: Optional[str] = "Beginner"
-    id: Optional[str] = None
     workout_history: List[PredictionMetrics] = Field(default_factory=list)  # Historical adherence for NN prediction
 
 
@@ -67,8 +66,10 @@ class AdherencePrediction(BaseModel):
 # Database Models (for storage)
 class StoredWorkoutPlan(BaseModel):
     user_id: str
-    plan_type: str  # "csp" or "rule_based"
+    # `plan_model` indicates the origin algorithm: "csp" or "rule_based"
+    plan_model: str
     plan_data: Dict[str, DayWorkout]
+    parent_plan_id: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = True
 
@@ -93,6 +94,16 @@ class UserActivityLog(BaseModel):
     action: str  # "plan_generated", "plan_adapted", "prediction_made", etc.
     details: ActivityDetails
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Representation of a stored user document (what clients will reference by `user_id`)
+class StoredUser(BaseModel):
+    id: str = Field(..., alias="_id")
+    name: str
+    available_days: List[str]
+    goal: str
+    level: Optional[str] = "Beginner"
+    workout_history: List[PredictionMetrics] = Field(default_factory=list)
 
 
 # Workout Models

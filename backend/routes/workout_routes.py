@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from models import User, WorkoutPlan, PlanComparison, AdherencePrediction
+from pydantic import BaseModel
+from typing import Optional
+from models import WorkoutPlan, PlanComparison, AdherencePrediction
 from controllers.workout_controller import WorkoutController
 from repositories import WorkoutRepository
 
@@ -7,25 +9,40 @@ router = APIRouter()
 controller = WorkoutController()
 workout_repository = WorkoutRepository()
 
+class UserIdRequest(BaseModel):
+    user_id: str
+
+
 @router.post("/plan/rule-based", response_model=dict)
-async def generate_rule_based_plan(user: User):
-    return controller.get_rule_based_plan(user)
+async def generate_rule_based_plan(req: UserIdRequest):
+    return controller.get_rule_based_plan(req.user_id)
 
 @router.post("/plan/csp", response_model=dict)
-async def generate_csp_plan(user: User):
-    return controller.get_csp_plan(user)
+async def generate_csp_plan(req: UserIdRequest):
+    return controller.get_csp_plan(req.user_id)
+
+class AdaptRequest(BaseModel):
+    plan_id: str
+    missed_day: str
+    user_id: str
+
 
 @router.post("/plan/adapt", response_model=dict)
-async def adapt_workout_plan(plan: WorkoutPlan, missed_day: str, user_id: str = "temp"):
-    return controller.adapt_plan(plan, missed_day, user_id)
+async def adapt_workout_plan(req: AdaptRequest):
+    return controller.adapt_plan(req.plan_id, req.missed_day, req.user_id)
 
 @router.post("/plan/compare", response_model=dict)
-async def compare_plans(user: User):
-    return controller.compare_plans(user)
+async def compare_plans(req: UserIdRequest):
+    return controller.compare_plans(req.user_id)
+
+class PredictRequest(BaseModel):
+    user_id: str
+    plan_id: Optional[str] = None
+
 
 @router.post("/predict/adherence", response_model=dict)
-async def predict_adherence(user: User, plan_id: str = None):
-    return controller.predict_adherence(user, plan_id)
+async def predict_adherence(req: PredictRequest):
+    return controller.predict_adherence(req.user_id, req.plan_id)
 
 # Additional routes for retrieving stored data
 @router.get("/users/{user_id}/plans")
