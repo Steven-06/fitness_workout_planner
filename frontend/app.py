@@ -56,10 +56,26 @@ if "user" not in st.session_state:
     st.session_state.user = None
 if "last_plan" not in st.session_state:
     st.session_state.last_plan = None
+if "rule_plan_data" not in st.session_state:
+    st.session_state.rule_plan_data = None
+if "csp_plan_data" not in st.session_state:
+    st.session_state.csp_plan_data = None
 if "last_comparison" not in st.session_state:
     st.session_state.last_comparison = None
 if "last_prediction" not in st.session_state:
     st.session_state.last_prediction = None
+if "all_users" not in st.session_state:
+    st.session_state.all_users = []
+if "user_plans" not in st.session_state:
+    st.session_state.user_plans = []
+if "user_comparisons" not in st.session_state:
+    st.session_state.user_comparisons = []
+if "user_predictions" not in st.session_state:
+    st.session_state.user_predictions = []
+if "user_activity" not in st.session_state:
+    st.session_state.user_activity = []
+if "workouts" not in st.session_state:
+    st.session_state.workouts = []
 
 # ============================================================================
 # Sidebar Configuration
@@ -82,8 +98,16 @@ if st.sidebar.button("🚀 Load Demo User", help="Load a pre-configured demo use
 if st.sidebar.button("🔄 Reset Session", help="Clear all session data"):
     st.session_state.user = None
     st.session_state.last_plan = None
+    st.session_state.rule_plan_data = None
+    st.session_state.csp_plan_data = None
     st.session_state.last_comparison = None
     st.session_state.last_prediction = None
+    st.session_state.all_users = []
+    st.session_state.user_plans = []
+    st.session_state.user_comparisons = []
+    st.session_state.user_predictions = []
+    st.session_state.user_activity = []
+    st.session_state.workouts = []
     st.sidebar.success("Session cleared!")
 
 # ============================================================================
@@ -109,6 +133,113 @@ def api_get(path, params=None):
         st.error(f"❌ Request error: {e}")
         return None
 
+def extract_user_id(user_data: dict) -> str:
+    return user_data.get("_id") or user_data.get("id") or user_data.get("user_id") or user_data.get("userId") or ""
+
+def format_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return "; ".join(f"{key}: {format_value(item)}" for key, item in value.items())
+    if isinstance(value, list):
+        return ", ".join(format_value(item) for item in value)
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    return value
+
+def show_table(title: str, rows: list, empty_message: str = "No records found"):
+    st.markdown(f"**{title}**")
+    if rows:
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+    else:
+        st.info(empty_message)
+
+def user_rows(users: list) -> list:
+    rows = []
+    for user in users:
+        rows.append({
+            "ID": extract_user_id(user),
+            "Name": user.get("name", ""),
+            "Goal": user.get("goal", ""),
+            "Level": user.get("level", ""),
+            "Available Days": format_value(user.get("available_days", [])),
+        })
+    return rows
+
+def plan_rows(plan: dict) -> list:
+    rows = []
+    for day, details in plan.items():
+        rows.append({
+            "Day": day,
+            "Workout": details.get("workout", ""),
+            "Exercises": format_value(details.get("exercises", [])),
+        })
+    return rows
+
+def comparison_rows(comparison: dict) -> list:
+    rule_score = comparison.get("rule_score", {})
+    csp_score = comparison.get("csp_score", {})
+    return [
+        {
+            "Metric": "Consecutive Conflicts",
+            "Rule-Based": rule_score.get("consecutive_conflicts", ""),
+            "CSP": csp_score.get("consecutive_conflicts", ""),
+        },
+        {
+            "Metric": "Rest Days",
+            "Rule-Based": rule_score.get("rest_days", ""),
+            "CSP": csp_score.get("rest_days", ""),
+        },
+        {
+            "Metric": "Goal Match Score",
+            "Rule-Based": rule_score.get("goal_match_score", ""),
+            "CSP": csp_score.get("goal_match_score", ""),
+        },
+        {
+            "Metric": "Verdict",
+            "Rule-Based": "",
+            "CSP": comparison.get("verdict", ""),
+        },
+    ]
+
+def prediction_rows(prediction: dict) -> list:
+    return [
+        {"Metric": "Adherence Probability", "Value": f"{prediction.get('adherence_probability', 0) * 100:.1f}%"},
+        {"Metric": "Difficulty Score", "Value": f"{prediction.get('difficulty_score', 0) * 100:.1f}%"},
+    ]
+
+def workout_rows(workouts: list) -> list:
+    rows = []
+    for workout in workouts:
+        rows.append({
+            "Category": workout.get("category", ""),
+            "Level": workout.get("level", ""),
+            "Duration (min)": workout.get("duration_minutes", ""),
+            "Intensity": workout.get("intensity", ""),
+            "Exercises": format_value(workout.get("exercises", [])),
+        })
+    return rows
+
+def activity_rows(activity: list) -> list:
+    rows = []
+    for item in activity:
+        rows.append({
+            "Action": item.get("action", ""),
+            "Details": format_value(item.get("details", {})),
+            "Timestamp": item.get("timestamp", ""),
+        })
+    return rows
+
+def generic_response_rows(payload):
+    if isinstance(payload, list):
+        return [
+            {"Item": idx + 1, "Value": format_value(item)}
+            for idx, item in enumerate(payload)
+        ]
+    if isinstance(payload, dict):
+        return [{"Field": key, "Value": format_value(value)} for key, value in payload.items()]
+    return [{"Value": format_value(payload)}]
+
 def display_response(response, title="Response"):
     """Display API response with formatting"""
     if response is None:
@@ -117,13 +248,13 @@ def display_response(response, title="Response"):
     if response.status_code == 200:
         st.success(f"✅ {title} - Success!")
         with st.expander("📋 Details", expanded=True):
-            st.json(response.json())
+            st.dataframe(generic_response_rows(response.json()), use_container_width=True, hide_index=True)
         return True
     else:
         st.error(f"❌ {title} - Error {response.status_code}")
         with st.expander("📋 Error Details"):
             try:
-                st.json(response.json())
+                st.dataframe(generic_response_rows(response.json()), use_container_width=True, hide_index=True)
             except:
                 st.text(response.text)
         return False
@@ -197,8 +328,19 @@ with tab1:
                     r = api_post("/users", payload=user_payload)
                     if r and r.status_code == 200:
                         data = r.json()
-                        st.session_state.user = {**user_payload, "id": data.get("id")}
-                        st.success(f"✅ User created! ID: `{data.get('id')}`")
+                        # Prefer the returned id/user_id, then fetch the stored user document
+                        created_id = data.get("id") or data.get("user_id")
+                        if created_id:
+                            u = api_get(f"/users/{created_id}")
+                            if u and u.status_code == 200:
+                                st.session_state.user = u.json()
+                                st.success(f"✅ User created! ID: `{created_id}`")
+                            else:
+                                # Fallback: save basic info with id
+                                st.session_state.user = {**user_payload, "_id": created_id}
+                                st.success(f"✅ User created! ID: `{created_id}` (partial)")
+                        else:
+                            st.error("Failed to read created user id from response")
                     else:
                         st.error(f"Failed to create user")
     
@@ -230,12 +372,21 @@ with tab1:
         with col3:
             st.markdown(f"**Level**: {user_data.get('level', 'N/A')}")
         with col4:
-            st.markdown(f"**ID**: `{user_data.get('_id', 'N/A')[:8]}...`")
+            # Display the most likely id fields
+            display_id = user_data.get("_id") or user_data.get("id") or user_data.get("user_id")
+            if display_id:
+                st.markdown(f"**ID**: `{display_id[:8]}...`")
+            else:
+                st.markdown("**ID**: N/A")
         
         st.markdown(f"**Available Days**: {', '.join(user_data.get('available_days', []))}")
         
-        with st.expander("📋 Full User Object"):
-            st.json(user_data)
+        with st.expander("📋 Full User Details"):
+            st.dataframe(
+                [{"Field": key, "Value": format_value(value)} for key, value in user_data.items()],
+                use_container_width=True,
+                hide_index=True,
+            )
     else:
         st.info("💡 Create or load a user to get started!")
 
@@ -250,7 +401,7 @@ with tab2:
         st.info(f"Planning for **{user_data.get('name')}** | Goal: **{user_data.get('goal')}** | Days: {', '.join(user_data.get('available_days', []))}")
         
         col_rule, col_csp = st.columns([1, 1])
-        
+
         with col_rule:
             st.subheader("📋 Rule-Based Planning")
             st.markdown("""
@@ -261,9 +412,11 @@ with tab2:
             """)
             if st.button("Generate Rule-Based Plan", key="rule_plan", use_container_width=True):
                 with st.spinner("Generating rule-based plan..."):
-                    r = api_post("/plan/rule-based", payload=user_data)
+                    uid = extract_user_id(user_data)
+                    r = api_post("/plan/rule-based", payload={"user_id": uid})
                     if r:
-                        st.session_state.last_plan = r.json()
+                        st.session_state.rule_plan_data = r.json()
+                        st.session_state.last_plan = st.session_state.rule_plan_data
                         display_response(r, "Rule-Based Plan Generated")
         
         with col_csp:
@@ -277,34 +430,36 @@ with tab2:
             """)
             if st.button("Generate CSP Plan", key="csp_plan", use_container_width=True):
                 with st.spinner("Generating CSP plan..."):
-                    r = api_post("/plan/csp", payload=user_data)
+                    uid = extract_user_id(user_data)
+                    r = api_post("/plan/csp", payload={"user_id": uid})
                     if r:
-                        st.session_state.last_plan = r.json()
+                        st.session_state.csp_plan_data = r.json()
+                        st.session_state.last_plan = st.session_state.csp_plan_data
                         display_response(r, "CSP Plan Generated")
         
-        if st.session_state.last_plan:
-            st.markdown("---")
-            st.subheader("📅 Generated Weekly Plan")
-            
-            plan = st.session_state.last_plan.get("plan", {})
-            if plan:
-                col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
-                cols = [col1, col2, col3, col4, col5, col6, col7]
-                days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-                
-                for i, day in enumerate(days):
-                    with cols[i]:
-                        day_data = plan.get(day, {})
-                        workout = day_data.get("workout", "Off")
-                        st.markdown(f"""
-                        <div class="metric">
-                            <strong>{day[:3]}</strong><br>
-                            {workout}
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                with st.expander("🔍 Detailed Plan"):
-                    st.json(plan)
+        st.markdown("---")
+        st.subheader("📅 Generated Weekly Plans")
+        plan_col_1, plan_col_2 = st.columns(2)
+
+        with plan_col_1:
+            st.markdown("### Rule-Based Plan")
+            if st.session_state.rule_plan_data:
+                st.caption(f"Plan ID: {st.session_state.rule_plan_data.get('plan_id', 'N/A')}")
+                rule_plan = st.session_state.rule_plan_data.get("plan", {})
+                if rule_plan:
+                    show_table("Weekly Schedule", plan_rows(rule_plan))
+            else:
+                st.info("Generate a rule-based plan to view it here.")
+
+        with plan_col_2:
+            st.markdown("### CSP Plan")
+            if st.session_state.csp_plan_data:
+                st.caption(f"Plan ID: {st.session_state.csp_plan_data.get('plan_id', 'N/A')}")
+                csp_plan = st.session_state.csp_plan_data.get("plan", {})
+                if csp_plan:
+                    show_table("Weekly Schedule", plan_rows(csp_plan))
+            else:
+                st.info("Generate a CSP plan to view it here.")
 
 # ============================================================================
 # TAB 3: Comparison & Adaptation
@@ -327,10 +482,24 @@ with tab3:
             """)
             if st.button("Generate & Compare Plans", key="compare", use_container_width=True):
                 with st.spinner("Comparing rule-based vs CSP plans..."):
-                    r = api_post("/plan/compare", payload=user_data)
+                    uid = extract_user_id(user_data)
+                    r = api_post("/plan/compare", payload={"user_id": uid})
                     if r:
                         st.session_state.last_comparison = r.json()
                         display_response(r, "Plan Comparison")
+
+        if st.session_state.rule_plan and st.session_state.csp_plan:
+            st.markdown("---")
+            st.subheader("📈 Side-by-Side Plan Comparison")
+            compare_left, compare_right = st.columns(2)
+
+            with compare_left:
+                st.markdown("### Rule-Based Plan")
+                show_table("Weekly Schedule", plan_rows(st.session_state.rule_plan.get("plan", {})))
+
+            with compare_right:
+                st.markdown("### CSP Plan")
+                show_table("Weekly Schedule", plan_rows(st.session_state.csp_plan.get("plan", {})))
         
         with col_adapt:
             st.subheader("🔄 Adapt Missed Days")
@@ -350,43 +519,25 @@ with tab3:
                     st.error("Generate a plan first!")
                 else:
                     with st.spinner("Adapting plan..."):
-                        plan_payload = {"plan": st.session_state.last_plan.get("plan", {})}
-                        r = api_post(
-                            "/plan/adapt",
-                            payload=plan_payload,
-                            params={"missed_day": missed_day, "user_id": user_data.get("id", "temp")}
-                        )
-                        if r:
-                            st.session_state.last_plan = r.json()
-                            display_response(r, "Plan Adapted")
+                        plan_id = st.session_state.last_plan.get("plan_id")
+                        uid = extract_user_id(user_data)
+                        if not plan_id:
+                            st.error("No stored plan_id available to adapt. Generate plan again to get a plan_id.")
+                        else:
+                            payload = {"plan_id": plan_id, "missed_day": missed_day, "user_id": uid}
+                            r = api_post("/plan/adapt", payload=payload)
+                            if r and r.status_code == 200:
+                                st.session_state.last_plan = r.json()
+                                display_response(r, "Plan Adapted")
+                            else:
+                                display_response(r, "Plan Adapt Failed")
         
         if st.session_state.last_comparison:
             st.markdown("---")
             st.subheader("📊 Comparison Results")
-            
             comp = st.session_state.last_comparison.get("comparison", {})
-            
             if comp:
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    st.markdown("### 📋 Rule-Based Score")
-                    rule_score = comp.get("rule_score", {})
-                    st.metric("Conflicts", rule_score.get("consecutive_conflicts", "-"))
-                    st.metric("Rest Days", rule_score.get("rest_days", "-"))
-                    st.metric("Goal Match", rule_score.get("goal_match_score", "-"))
-                
-                with col2:
-                    st.markdown("### 🧩 CSP Score")
-                    csp_score = comp.get("csp_score", {})
-                    st.metric("Conflicts", csp_score.get("consecutive_conflicts", "-"))
-                    st.metric("Rest Days", csp_score.get("rest_days", "-"))
-                    st.metric("Goal Match", csp_score.get("goal_match_score", "-"))
-                
-                with col3:
-                    st.markdown("### 🏆 Verdict")
-                    verdict = comp.get("verdict", "No verdict")
-                    st.info(verdict)
+                show_table("Comparison Summary", comparison_rows(comp))
 
 # ============================================================================
 # TAB 4: AI Prediction
@@ -427,10 +578,11 @@ with tab4:
             st.markdown("### Run Prediction")
             if st.button("🔮 Predict Adherence", use_container_width=True):
                 with st.spinner("Running AI prediction..."):
-                    params = {}
+                    uid = extract_user_id(user_data)
+                    payload = {"user_id": uid}
                     if plan_id:
-                        params["plan_id"] = plan_id
-                    r = api_post("/predict/adherence", payload=user_data, params=params)
+                        payload["plan_id"] = plan_id
+                    r = api_post("/predict/adherence", payload=payload)
                     if r:
                         st.session_state.last_prediction = r.json()
                         display_response(r, "Prediction Complete")
@@ -442,6 +594,7 @@ with tab4:
             pred = st.session_state.last_prediction.get("prediction", {})
             
             if pred:
+                show_table("Prediction Summary", prediction_rows(pred))
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -479,7 +632,39 @@ with tab5:
         st.warning("⚠️ Please create or load a user first!")
     else:
         user_data = st.session_state.user
-        user_id = user_data.get("id", "")
+        user_id = (user_data.get("_id") or user_data.get("id") or user_data.get("user_id") or "")
+        
+        st.subheader("👥 System Users")
+        if st.button("Load All Users", use_container_width=True):
+            with st.spinner("Loading all users..."):
+                r = api_get("/users")
+                if r and r.status_code == 200:
+                    users = r.json()
+                    st.session_state.all_users = users if isinstance(users, list) else users.get("users", [])
+                    display_response(r, "All Users")
+                else:
+                    st.error("Failed to load users")
+
+        if st.session_state.all_users:
+            show_table("All Users", user_rows(st.session_state.all_users))
+
+            user_choices = {
+                f"{user.get('name', 'Unknown')} | {extract_user_id(user)[:8]}": extract_user_id(user)
+                for user in st.session_state.all_users
+                if extract_user_id(user)
+            }
+            if user_choices:
+                selected_user_label = st.selectbox("Load a user from the system", list(user_choices.keys()))
+                if st.button("Load Selected User", use_container_width=True):
+                    selected_user_id = user_choices[selected_user_label]
+                    r = api_get(f"/users/{selected_user_id}")
+                    if r and r.status_code == 200:
+                        st.session_state.user = r.json()
+                        st.success("Selected user loaded.")
+                    else:
+                        st.error("Could not load selected user")
+        
+        st.markdown("---")
         
         col_plans, col_comps, col_preds = st.columns(3)
         
@@ -488,21 +673,79 @@ with tab5:
             if st.button("Load Plans", key="load_plans", use_container_width=True):
                 with st.spinner("Loading plans..."):
                     r = api_get(f"/users/{user_id}/plans")
-                    display_response(r, "User Plans")
+                    if r and r.status_code == 200:
+                        plans_payload = r.json().get("plans", [])
+                        st.session_state.user_plans = plans_payload
+                        display_response(r, "User Plans")
+                        if plans_payload:
+                            for idx, plan in enumerate(plans_payload, start=1):
+                                with st.expander(f"Plan {idx} | {plan.get('plan_model', 'unknown')} | {plan.get('plan_id', 'no id')}"):
+                                    show_table("Plan Details", plan_rows(plan.get("plan_data", {})))
+                    else:
+                        st.error("Failed to load plans")
         
         with col_comps:
             st.subheader("⚖️ Your Comparisons")
             if st.button("Load Comparisons", key="load_comps", use_container_width=True):
                 with st.spinner("Loading comparisons..."):
                     r = api_get(f"/users/{user_id}/comparisons")
-                    display_response(r, "User Comparisons")
+                    if r and r.status_code == 200:
+                        comps_payload = r.json().get("comparisons", [])
+                        st.session_state.user_comparisons = comps_payload
+                        display_response(r, "User Comparisons")
+                        if comps_payload:
+                            show_table(
+                                "Comparisons",
+                                [
+                                    {
+                                        "Comparison ID": item.get("comparison_id", ""),
+                                        "Created At": item.get("created_at", ""),
+                                        "Verdict": item.get("comparison_data", {}).get("verdict", ""),
+                                    }
+                                    for item in comps_payload
+                                ],
+                            )
+                    else:
+                        st.error("Failed to load comparisons")
         
         with col_preds:
             st.subheader("🤖 Your Predictions")
             if st.button("Load Predictions", key="load_preds", use_container_width=True):
                 with st.spinner("Loading predictions..."):
                     r = api_get(f"/users/{user_id}/predictions")
-                    display_response(r, "User Predictions")
+                    if r and r.status_code == 200:
+                        preds_payload = r.json().get("predictions", [])
+                        st.session_state.user_predictions = preds_payload
+                        display_response(r, "User Predictions")
+                        if preds_payload:
+                            show_table(
+                                "Predictions",
+                                [
+                                    {
+                                        "Prediction ID": item.get("prediction_id", ""),
+                                        "Created At": item.get("created_at", ""),
+                                        "Adherence": f"{item.get('prediction_data', {}).get('adherence_probability', 0) * 100:.1f}%",
+                                        "Difficulty": f"{item.get('prediction_data', {}).get('difficulty_score', 0) * 100:.1f}%",
+                                    }
+                                    for item in preds_payload
+                                ],
+                            )
+                    else:
+                        st.error("Failed to load predictions")
+
+        st.markdown("---")
+        st.subheader("🕘 Current User Activity")
+        activity_limit = st.slider("Activity items to load", min_value=5, max_value=50, value=20, step=5)
+        if st.button("Load Activity", use_container_width=True):
+            with st.spinner("Loading activity..."):
+                r = api_get(f"/users/{user_id}/activity", params={"limit": activity_limit})
+                if r and r.status_code == 200:
+                    activity_payload = r.json().get("activity", [])
+                    st.session_state.user_activity = activity_payload
+                    display_response(r, "User Activity")
+                    show_table("Activity Log", activity_rows(activity_payload))
+                else:
+                    st.error("Failed to load activity")
         
         st.markdown("---")
         st.subheader("📊 Workout Database")
@@ -515,23 +758,9 @@ with tab5:
                     r = api_get("/workouts")
                     if r and r.status_code == 200:
                         workouts = r.json().get("workouts", [])
+                        st.session_state.workouts = workouts
                         st.success(f"✅ Found {len(workouts)} workouts")
-                        
-                        # Group by category
-                        categories = {}
-                        for w in workouts:
-                            cat = w.get("category", "Unknown")
-                            if cat not in categories:
-                                categories[cat] = []
-                            categories[cat].append(w)
-                        
-                        for cat, items in categories.items():
-                            with st.expander(f"{cat} ({len(items)} workouts)"):
-                                for item in items:
-                                    st.markdown(f"""
-                                    **{item.get('level')}** | Intensity: {item.get('intensity')} | Duration: {item.get('duration_minutes')}min
-                                    - Exercises: {', '.join(item.get('exercises', [])[:3])}...
-                                    """)
+                        show_table("All Workouts", workout_rows(workouts))
                     else:
                         st.error("Failed to load workouts")
         
@@ -558,8 +787,12 @@ with tab5:
                         r = api_get(f"/workouts/level/{level}")
                     else:
                         r = api_get("/workouts")
-                    
-                    display_response(r, "Filtered Workouts")
+                    if r and r.status_code == 200:
+                        payload = r.json()
+                        filtered_workouts = payload.get("workouts", []) if isinstance(payload, dict) else payload
+                        show_table("Filtered Workouts", workout_rows(filtered_workouts))
+                    else:
+                        st.error("Failed to filter workouts")
 
 # ============================================================================
 # Footer
