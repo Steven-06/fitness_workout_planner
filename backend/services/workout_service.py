@@ -127,6 +127,9 @@ class WorkoutService:
         return workout_plan, saved_plan["_id"]
 
     def compare_plans(self, user_id: str) -> Tuple[PlanComparison, str]:
+        user = self.user_repository.get(user_id)
+        if not user:
+            raise ValueError("User not found")
         rule_workout_plan, rule_plan_id = self.generate_rule_based_plan(user_id)
         csp_workout_plan, csp_plan_id = self.generate_csp_plan(user_id)
 
@@ -136,7 +139,7 @@ class WorkoutService:
         # Convert DayWorkout objects to dicts for the comparison function
         csp_plan_dict = {day: day_workout.dict() for day, day_workout in csp_workout_plan.plan.items()}
         rule_plan_dict = {day: day_workout.dict() for day, day_workout in rule_workout_plan.plan.items()}
-        comparison_result = compare_workout_plans(csp_plan_dict, rule_plan_dict, user.goal)
+        comparison_result = compare_workout_plans(csp_plan_dict, rule_plan_dict, user.get("goal") or "")
         plan_comparison = PlanComparison(
             csp_score=comparison_result.csp_score,
             rule_score=comparison_result.rule_score,
