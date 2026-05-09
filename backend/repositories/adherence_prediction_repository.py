@@ -1,5 +1,5 @@
-from backend.models.database import adherence_predictions_collection
-from backend.models import StoredAdherencePrediction
+from models.database import adherence_predictions_collection
+from models import StoredAdherencePrediction
 from typing import Optional, List
 from bson import ObjectId
 

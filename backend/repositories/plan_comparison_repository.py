@@ -1,5 +1,5 @@
-from backend.models.database import plan_comparisons_collection
-from backend.models import StoredPlanComparison
+from models.database import plan_comparisons_collection
+from models import StoredPlanComparison
 from typing import Optional, List
 from bson import ObjectId
 

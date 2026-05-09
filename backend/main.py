@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from backend.routes.workout_routes import router as workout_router
-from backend.routes.user_routes import router as user_router
-from backend.seed import seed_workouts
-from backend.services.adherence_predictor import AdherencePredictor
+from routes.workout_routes import router as workout_router
+from routes.user_routes import router as user_router
+from seed import seed_workouts
+from services.adherence_predictor import AdherencePredictor
 
 app = FastAPI(title="Fitness Tracker API", version="1.0.0")
 

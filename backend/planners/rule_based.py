@@ -1,4 +1,4 @@
-from backend.repositories import WorkoutRepository
+from repositories import WorkoutRepository
 
 
 def generate_rule_based_plan(user):

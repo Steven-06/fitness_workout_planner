@@ -1,7 +1,9 @@
 from pymongo import MongoClient
 from pymongo.database import Database
+import os
 
-MONGO_URL = "mongodb://localhost:27017"
+# Use MONGODB_URL environment variable if set, otherwise use localhost default
+MONGO_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
 client = MongoClient(MONGO_URL)
 db: Database = client.fitness_tracker
 

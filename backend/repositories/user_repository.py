@@ -1,5 +1,5 @@
-from backend.models.database import users_collection
-from backend.models import User
+from models.database import users_collection
+from models import User
 from typing import Optional, List
 from bson import ObjectId
 

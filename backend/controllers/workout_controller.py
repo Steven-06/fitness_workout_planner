@@ -1,6 +1,6 @@
 from fastapi import HTTPException
-from backend.models import User, WorkoutPlan, PlanComparison, AdherencePrediction
-from backend.services.workout_service import WorkoutService
+from models import User, WorkoutPlan, PlanComparison, AdherencePrediction
+from services.workout_service import WorkoutService
 from typing import Optional
 
 

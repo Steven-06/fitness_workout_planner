@@ -1,5 +1,5 @@
-from backend.models.database import activity_logs_collection
-from backend.models import UserActivityLog
+from models.database import activity_logs_collection
+from models import UserActivityLog
 from typing import Optional, List
 from bson import ObjectId
 

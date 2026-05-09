@@ -1,5 +1,5 @@
 import copy
-from backend.models.models import PlanScore, ComparisonResult
+from models.models import PlanScore, ComparisonResult
 
 
 def adapt_plan(plan, missed_day):

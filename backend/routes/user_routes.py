@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from backend.models import User
-from backend.repositories.user_repository import UserRepository
+from models import User
+from repositories.user_repository import UserRepository
 
 router = APIRouter()
 

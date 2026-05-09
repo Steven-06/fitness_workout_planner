@@ -1,5 +1,5 @@
-from backend.models import StoredWorkout
-from backend.repositories.workout_repository import WorkoutRepository
+from models import StoredWorkout
+from repositories.workout_repository import WorkoutRepository
 
 
 WORKOUT_SEED_DATA = [

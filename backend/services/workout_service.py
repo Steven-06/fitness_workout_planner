@@ -1,16 +1,16 @@
-from backend.models.models import (
+from models.models import (
     User, WorkoutPlan, PlanComparison, AdherencePrediction,
     StoredWorkoutPlan, StoredPlanComparison, StoredAdherencePrediction, UserActivityLog,
     DayWorkout, PredictionMetrics, ActivityDetails, ComparisonResult
 )
-from backend.repositories import (
+from repositories import (
     UserRepository, WorkoutPlanRepository, PlanComparisonRepository,
     AdherencePredictionRepository, ActivityLogRepository, WorkoutRepository
 )
-from backend.planners.rule_based import generate_rule_based_plan
-from backend.planners.csp_planner import CSPWorkoutPlanner
-from backend.utils.adapt_plan import adapt_plan as adapt_workout_plan_data, compare_plans as compare_workout_plans
-from backend.services.adherence_predictor import AdherencePredictor
+from planners.rule_based import generate_rule_based_plan
+from planners.csp_planner import CSPWorkoutPlanner
+from utils.adapt_plan import adapt_plan as adapt_workout_plan_data, compare_plans as compare_workout_plans
+from services.adherence_predictor import AdherencePredictor
 from typing import Optional, Tuple
 from datetime import datetime
 

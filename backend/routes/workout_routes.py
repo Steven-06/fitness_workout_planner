@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from backend.models import User, WorkoutPlan, PlanComparison, AdherencePrediction
-from backend.controllers.workout_controller import WorkoutController
-from backend.repositories import WorkoutRepository
+from models import User, WorkoutPlan, PlanComparison, AdherencePrediction
+from controllers.workout_controller import WorkoutController
+from repositories import WorkoutRepository
 
 router = APIRouter()
 controller = WorkoutController()

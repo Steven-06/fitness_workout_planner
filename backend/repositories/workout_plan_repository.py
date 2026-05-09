@@ -1,5 +1,5 @@
-from backend.models.database import workout_plans_collection
-from backend.models import StoredWorkoutPlan
+from models.database import workout_plans_collection
+from models import StoredWorkoutPlan
 from typing import Optional, List
 from bson import ObjectId
 

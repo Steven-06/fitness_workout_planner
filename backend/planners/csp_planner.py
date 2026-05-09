@@ -1,5 +1,5 @@
 from constraint import Problem
-from backend.repositories import WorkoutRepository
+from repositories import WorkoutRepository
 
 
 class CSPWorkoutPlanner:
