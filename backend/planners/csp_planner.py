@@ -3,6 +3,12 @@ from backend.repositories import WorkoutRepository
 
 
 class CSPWorkoutPlanner:
+    """CSP planner acting as a scheduling agent over the workout environment.
+
+    The planner models available days, workout categories, and user goals as an
+    environment of variables and constraints. It solves a one-week schedule
+    while enforcing recovery, workload balance, and goal-aligned workout counts.
+    """
     def __init__(self, user):
         self.user = user
         self.problem = Problem()
