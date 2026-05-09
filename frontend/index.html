@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fitness Planner</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero-card">
+      <div>
+        <p class="eyebrow">Fitness Planner</p>
+        <h1>Modern workout planning</h1>
+        <p class="lead">Generate personalized plans, adapt workouts, predict adherence, and explore your fitness data in a clean web experience.</p>
+      </div>
+      <div class="hero-actions">
+        <label class="field-label">Backend URL</label>
+        <div class="url-group">
+          <input id="backendUrl" type="text" placeholder="Leave empty to use same origin" />
+          <button id="testApiBtn" class="secondary">Test</button>
+        </div>
+        <p class="hint">The web app communicates with the FastAPI backend at <code>/api/v1</code>.</p>
+      </div>
+    </header>
+
+    <main class="grid-layout">
+      <section class="card card-medium" id="userCard">
+        <div class="card-header">
+          <div>
+            <p class="section-label">User Management</p>
+            <h2>Create or load a user</h2>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="field-label">Name</label>
+          <input id="nameInput" type="text" placeholder="Your name" />
+
+          <label class="field-label">Goal</label>
+          <select id="goalInput">
+            <option value="weight_loss">Weight Loss</option>
+            <option value="muscle_gain">Muscle Gain</option>
+            <option value="endurance">Endurance</option>
+            <option value="general_fitness">General Fitness</option>
+          </select>
+
+          <label class="field-label">Level</label>
+          <select id="levelInput">
+            <option>Beginner</option>
+            <option>Intermediate</option>
+            <option>Advanced</option>
+          </select>
+
+          <label class="field-label">Available Days</label>
+          <div class="checkbox-grid" id="daysCheckboxes"></div>
+        </div>
+
+        <div class="button-row">
+          <button id="createUserBtn">Create User</button>
+          <input id="loadUserId" type="text" placeholder="Existing user ID" />
+          <button id="loadUserBtn" class="secondary">Load</button>
+        </div>
+
+        <div class="info-panel" id="currentUserCard">
+          <p class="info-label">Current user</p>
+          <pre id="currentUserInfo">No user loaded.</pre>
+        </div>
+      </section>
+
+      <section class="card card-medium" id="planCard">
+        <div class="card-header">
+          <div>
+            <p class="section-label">Plan Workflow</p>
+            <h2>Generate and adapt workouts</h2>
+          </div>
+        </div>
+
+        <div class="button-grid">
+          <button id="generateRuleBtn">Rule-based Plan</button>
+          <button id="generateCspBtn">CSP Plan</button>
+          <button id="comparePlansBtn" class="secondary">Compare Plans</button>
+        </div>
+
+        <div class="form-grid">
+          <label class="field-label">Missed Day</label>
+          <input id="missedDayInput" type="text" placeholder="Mon, Tue, Wed..." />
+        </div>
+
+        <div class="button-row">
+          <button id="adaptPlanBtn">Adapt Last Plan</button>
+          <button id="predictAdherenceBtn" class="secondary">Predict Adherence</button>
+        </div>
+      </section>
+
+      <section class="card card-medium" id="dataCard">
+        <div class="card-header">
+          <div>
+            <p class="section-label">Data Browser</p>
+            <h2>Review stored data</h2>
+          </div>
+        </div>
+
+        <div class="button-grid">
+          <button id="getPlansBtn">My Plans</button>
+          <button id="getComparisonsBtn" class="secondary">My Comparisons</button>
+          <button id="getPredictionsBtn" class="secondary">My Predictions</button>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <div class="button-row">
+          <button id="listWorkoutsBtn">List Workouts</button>
+        </div>
+
+        <div class="form-grid">
+          <label class="field-label">Category</label>
+          <input id="categoryInput" type="text" placeholder="Cardio, Upper Body..." />
+          <label class="field-label">Level</label>
+          <input id="levelFilterInput" type="text" placeholder="Beginner, Intermediate" />
+        </div>
+
+        <div class="button-row">
+          <button id="filterWorkoutsBtn" class="secondary">Filter Workouts</button>
+        </div>
+      </section>
+
+      <section class="card card-full" id="outputCard">
+        <div class="card-header">
+          <div>
+            <p class="section-label">Live Output</p>
+            <h2>Results & diagnostics</h2>
+          </div>
+        </div>
+        <div class="status-panel" id="statusPanel">Ready to connect.</div>
+        <pre id="outputArea" class="output-area">Your API response will appear here.</pre>
+      </section>
+    </main>
+  </div>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

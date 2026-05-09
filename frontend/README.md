@@ -1,10 +1,22 @@
-# Frontend (Streamlit)
+# Frontend (Modern Web App)
 
-To run the Streamlit frontend (talks to the FastAPI backend), first start the backend (default: http://localhost:8000), then run:
+The new frontend is served directly by the FastAPI backend at the project root. It provides the same user workflows in a polished HTML/CSS/JavaScript interface.
 
-```bash
-pip install -r requirements.txt
-streamlit run frontend/app.py
-```
+## Run the frontend
 
-The app provides UI to create/load users, generate plans (rule-based or CSP), compare plans, adapt plans, predict adherence, and browse workouts. Configure the backend URL in the sidebar if your server runs elsewhere.
+1. Start the backend server:
+   ```bash
+   uvicorn backend.main:app --reload
+   ```
+2. Open your browser and visit:
+   ```text
+   http://localhost:8000
+   ```
+
+## Features
+
+- Create or load users
+- Generate rule-based and CSP workout plans
+- Compare plans, adapt plans, and predict adherence
+- Browse saved plans, comparisons, predictions, and workouts
+- Optional backend URL override for remote API deployments
