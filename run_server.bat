@@ -74,11 +74,22 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo 📦 Installing Python dependencies...
-if exist "requirements.txt" (
-    pip install -q -r requirements.txt
-    echo ✓ Dependencies installed
+set "VENV_PY=%~dp0venv\Scripts\python.exe"
+if exist "%VENV_PY%" (
+    echo Using venv python: "%VENV_PY%"
+    "%VENV_PY%" -m pip install --disable-pip-version-check --no-input -r ..\requirements.txt
+    if %ERRORLEVEL% NEQ 0 (
+        echo Failed to install from repo root; trying backend requirements
+        "%VENV_PY%" -m pip install --disable-pip-version-check --no-input -r requirements.txt
+    )
+    echo ✓ Dependencies installation finished
 ) else (
-    echo ⚠️  requirements.txt not found in backend directory
+    echo venv python not found; falling back to system pip
+    pip install --disable-pip-version-check --no-input -r ..\requirements.txt
+    if %ERRORLEVEL% NEQ 0 (
+        pip install --disable-pip-version-check --no-input -r requirements.txt
+    )
+    echo ✓ Dependencies installation finished
 )
 
 REM Set MongoDB connection string
@@ -95,6 +106,16 @@ echo 🔍 ReDoc at: http://127.0.0.1:8000/redoc
 echo.
 echo Press Ctrl+C to stop the server
 echo.
+
+REM Start the FastAPI server
+REM Start Streamlit frontend in a new window (if venv exists)
+if exist "%VENV_PY%" (
+    echo Starting Streamlit in this terminal
+    start "" /b "%VENV_PY%" -m streamlit run ..\frontend\app.py --server.port=8501 --server.headless true
+) else (
+    echo Starting Streamlit in this terminal
+    start "" /b streamlit run ..\frontend\app.py --server.port=8501 --server.headless true
+)
 
 REM Start the FastAPI server
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload

@@ -74,11 +74,26 @@ Push-Location (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "back
 Write-Host ""
 Write-Host "📦 Installing Python dependencies..." -ForegroundColor Yellow
 
-if (Test-Path "requirements.txt") {
-    pip install -q -r requirements.txt
-    Write-Host "✓ Dependencies installed" -ForegroundColor Green
+# Try to use virtualenv python to run pip (avoids wrong interpreter)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$venvPython = Join-Path $scriptDir "venv\Scripts\python.exe"
+if (Test-Path $venvPython) {
+    Write-Host "Using venv python: $venvPython" -ForegroundColor Green
+    & $venvPython -m pip install --disable-pip-version-check --no-input -r (Join-Path $scriptDir "requirements.txt") `
+        2>&1 | Write-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Install from repo root failed; trying backend requirements" -ForegroundColor Yellow
+        & $venvPython -m pip install --disable-pip-version-check --no-input -r (Join-Path $scriptDir "backend\requirements.txt") 2>&1 | Write-Host
+    }
+    Write-Host "✓ Dependencies installation finished" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  requirements.txt not found in backend directory" -ForegroundColor Yellow
+    Write-Host "venv python not found; falling back to system pip" -ForegroundColor Yellow
+    pip install --disable-pip-version-check --no-input -r ..\requirements.txt 2>&1 | Write-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Fallback install failed; try manual install" -ForegroundColor Red
+    } else {
+        Write-Host "✓ Dependencies installation finished" -ForegroundColor Green
+    }
 }
 
 # Set MongoDB connection string
@@ -95,6 +110,17 @@ Write-Host "🔍 ReDoc at: http://127.0.0.1:8000/redoc" -ForegroundColor Green
 Write-Host ""
 Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
 Write-Host ""
+
+# Start the FastAPI server
+# Start Streamlit frontend (runs in parallel)
+$frontendScript = Join-Path $scriptDir "frontend\app.py"
+if (Test-Path $venvPython) {
+    Write-Host "Starting Streamlit (venv) on port 8501..." -ForegroundColor Green
+    Start-Process -FilePath $venvPython -ArgumentList '-m','streamlit','run',$frontendScript,'--server.port=8501','--server.headless=true' -WorkingDirectory $scriptDir
+} else {
+    Write-Host "Starting Streamlit (system) on port 8501..." -ForegroundColor Yellow
+    Start-Process -FilePath "streamlit" -ArgumentList 'run',$frontendScript,'--server.port=8501','--server.headless=true' -WorkingDirectory $scriptDir
+}
 
 # Start the FastAPI server
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
